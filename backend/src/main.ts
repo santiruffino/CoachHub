@@ -7,7 +7,7 @@ async function bootstrap() {
     logger: new FileLogger(),
   });
   const corsOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',')
+    ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
     : true;
 
   app.enableCors({
