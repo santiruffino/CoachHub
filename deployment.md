@@ -45,6 +45,7 @@ The `docker-compose.yml` file comes with pre-configured environment variables fo
 | `S3_ACCESS_KEY` | S3 Access Key | `minioadmin` |
 | `S3_SECRET_KEY` | S3 Secret Key | `minioadmin` |
 | `S3_BUCKET_NAME` | Bucket for storing videos | `pt-pwa-videos` |
+| `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:8080` |
 
 ### Frontend
 | Variable | Description | Default (Docker) |
@@ -186,9 +187,102 @@ Do not expose ports 3000, 9000, 5433 directly to the internet. Instead, use a re
 3.  **Restart Caddy**: `sudo systemctl restart caddy`
 
 #### Option B: Using Nginx (Standard)
-1.  **Install Nginx**: `sudo apt install nginx`
-2.  **Configure Sites**: Create config files in `/etc/nginx/sites-available/` for your domains, proxying to the local Docker ports.
-3.  **Get Certs**: Use `certbot` (`sudo apt install certbot python3-certbot-nginx`) to auto-configure SSL.
+
+1.  **Install Nginx**:
+    ```bash
+    sudo apt update
+    sudo apt install nginx
+    ```
+
+2.  **Configure Nginx**:
+    Create a new configuration file, for example `/etc/nginx/sites-available/pt-pwa`:
+    ```bash
+    sudo nano /etc/nginx/sites-available/pt-pwa
+    ```
+
+    Paste the following configuration (replace `yourdomain.com` with your actual domain):
+
+    ```nginx
+    # Frontend (PWA)
+    server {
+        listen 80;
+        server_name app.yourdomain.com;
+
+        location / {
+            proxy_pass http://localhost:8080;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+        }
+    }
+
+    # Backend API
+    server {
+        listen 80;
+        server_name backend.yourdomain.com;
+
+        # Increase body size for video uploads
+        client_max_body_size 100M;
+
+        location / {
+            proxy_pass http://localhost:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+            
+            # Forward real IP to backend
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+    # MinIO (File Storage)
+    server {
+        listen 80;
+        server_name files.yourdomain.com;
+
+        # Increase body size for direct uploads
+        client_max_body_size 100M;
+
+        location / {
+            proxy_pass http://localhost:9000;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # Required for MinIO
+            proxy_buffering off;
+        }
+    }
+    ```
+
+3.  **Enable the Configuration**:
+    Link the file to `sites-enabled` and remove the default config if necessary.
+    ```bash
+    sudo ln -s /etc/nginx/sites-available/pt-pwa /etc/nginx/sites-enabled/
+    # Optional: remove default
+    # sudo rm /etc/nginx/sites-enabled/default
+    ```
+
+4.  **Test and Restart**:
+    ```bash
+    sudo nginx -t
+    sudo systemctl restart nginx
+    ```
+
+5.  **Setup SSL (HTTPS)**:
+    Use Certbot to automatically obtain and configure SSL certificates for all your subdomains.
+    ```bash
+    sudo apt install certbot python3-certbot-nginx
+    sudo certbot --nginx -d app.yourdomain.com -d backend.yourdomain.com -d files.yourdomain.com
+    ```
 
 ### 5. Hardware Requirements (AWS EC2)
 
@@ -215,3 +309,57 @@ Offload stateful services to managed AWS services.
 #### Storage
 -   **Root Volume**: 20GB gp3 (General Purpose SSD) is sufficient for the OS and Docker images.
 -   **Data**: If using Option A, ensure you monitor disk usage as video uploads (MinIO) will consume space quickly. Consider mounting a separate EBS volume for `/var/lib/docker/volumes`.
+
+### 6. Database Access (DBeaver)
+
+To manage the database, use a client like **DBeaver**.
+
+#### Connection Details
+-   **Host**: `localhost` (if using SSH Tunnel) or Your EC2 Public IP
+-   **Port**: `5433` (External port defined in `docker-compose.yml`)
+-   **Database**: `pt_pwa` (or value of `POSTGRES_DB`)
+-   **Username**: Value of `POSTGRES_USER` in `.env`
+-   **Password**: Value of `POSTGRES_PASSWORD` in `.env`
+
+#### Security Considerations (CRITICAL)
+
+**Option A: SSH Tunneling (Recommended)**
+This is the most secure method. You do **not** need to open port 5433 to the internet.
+1.  In DBeaver, create a new PostgreSQL connection.
+2.  **Main** tab:
+    -   Host: `localhost`
+    -   Port: `5433`
+3.  **SSH** tab:
+    -   Check "Use SSH Tunnel".
+    -   **Host/IP**: Your EC2 Public IP.
+    -   **User**: `ubuntu` (or `ec2-user` for Amazon Linux).
+    -   **Authentication Method**: Public Key.
+    -   **Private Key**: Path to your `.pem` key file on your computer.
+4.  Click "Test Connection".
+
+**Option B: Direct Connection (Less Secure)**
+If you must connect directly:
+1.  Go to AWS Console > EC2 > Security Groups.
+2.  Edit Inbound Rules.
+3.  Add Rule:
+    -   Type: Custom TCP
+    -   Port: `5433`
+    -   Source: **My IP** (Do NOT use `0.0.0.0/0` - this exposes your DB to the entire world).
+
+### 7. Database Seeding (Initial Admin User)
+
+The database is empty by default. You need to run the seed script to create the initial Super Admin user.
+
+1.  **Run the seed command** inside the backend container:
+    ```bash
+    docker compose exec backend npx prisma db seed
+    ```
+
+2.  **Verify the user**:
+    The default admin user will be created with:
+    -   **Email**: `admin@example.com`
+    -   **Password**: `admin123`
+
+    > [!IMPORTANT]
+    > **Change this password immediately** after logging in for the first time!
+
