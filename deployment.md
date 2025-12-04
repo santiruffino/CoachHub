@@ -24,10 +24,10 @@ This guide describes how to deploy the Personal Trainer PWA application using Do
     - **PostgreSQL** (Database) on port `5433`
     - **MinIO** (Object Storage) on ports `9000` (API) and `9001` (Console)
     - **Backend** (NestJS API) on port `3000`
-    - **Frontend** (React/Vite SPA) on port `80`
+    - **Frontend** (React/Vite SPA) on port `8080`
 
 3.  **Access the application**:
-    - **Frontend**: [http://localhost](http://localhost)
+    - **Frontend**: [http://localhost:8080](http://localhost:8080)
     - **Backend API**: [http://localhost:3000](http://localhost:3000)
     - **MinIO Console**: [http://localhost:9001](http://localhost:9001) (User: `minioadmin`, Password: `minioadmin`)
 
@@ -172,7 +172,7 @@ Do not expose ports 3000, 9000, 5433 directly to the internet. Instead, use a re
 2.  **Configure Caddyfile** (`/etc/caddy/Caddyfile`):
     ```caddyfile
     yourdomain.com {
-        reverse_proxy localhost:80
+        reverse_proxy localhost:8080
     }
 
     api.yourdomain.com {

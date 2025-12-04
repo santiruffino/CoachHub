@@ -79,7 +79,7 @@ services:
     build: ./frontend
     container_name: pt_pwa_frontend
     ports:
-      - "80:80"
+      - "8080:80"
     environment:
       # Note: This is a build-time variable for Vite
       VITE_API_URL: ${VITE_API_URL}
