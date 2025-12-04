@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pt_pwa_postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pt_pwa
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d pt_pwa" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - pt_pwa_network
+
+  minio:
+    image: minio/minio
+    container_name: pt_pwa_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - pt_pwa_network
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c " /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin; /usr/bin/mc mb --ignore-existing myminio/pt-pwa-videos; /usr/bin/mc anonymous set public myminio/pt-pwa-videos; exit 0; "
+    networks:
+      - pt_pwa_network
+
+  backend:
+    build: ./backend
+    container_name: pt_pwa_backend
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://user:password@postgres:5432/pt_pwa?schema=public"
+      JWT_SECRET: "super-secret-key-change-in-prod"
+      S3_ENDPOINT: "http://minio:9000"
+      S3_PUBLIC_ENDPOINT: "http://localhost:9000"
+      S3_REGION: "us-east-1"
+      S3_ACCESS_KEY: "minioadmin"
+      S3_SECRET_KEY: "minioadmin"
+      S3_BUCKET_NAME: "pt-pwa-videos"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: >
+      sh -c "npx prisma generate && npx prisma migrate deploy && npm run start:prod"
+    networks:
+      - pt_pwa_network
+
+  frontend:
+    build: ./frontend
+    container_name: pt_pwa_frontend
+    ports:
+      - "80:80"
+    environment:
+      # Note: This is a build-time variable for Vite
+      VITE_API_URL: "http://localhost:3000"
+    depends_on:
+      - backend
+    networks:
+      - pt_pwa_network
+
+volumes:
+  postgres_data:
+  minio_data:
+
+
+networks:
+  pt_pwa_network:
+    driver: bridge

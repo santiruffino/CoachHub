@@ -1,0 +1,155 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  COACH
+  STUDENT
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      Role     @default(STUDENT)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  coachId   String?  // For Students: who is their coach
+  coach     User?    @relation("CoachStudents", fields: [coachId], references: [id])
+  students  User[]   @relation("CoachStudents") // For Coaches: their students
+
+  createdPlans Plan[]  @relation("CoachPlans") // Plans created by this coach
+  createdExercises Exercise[] @relation("CoachExercises") // Exercises created by this coach
+  assignedPlans AssignedPlan[] // Plans assigned to this student (if student)
+
+  workoutLogs WorkoutLog[] // Logs created by this student
+
+  @@map("users")
+}
+
+enum SeriesSpecType {
+  REPS
+  TIME
+}
+
+model Exercise {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  videoUrl    String?
+  muscleGroup String?
+  
+  coachId     String?
+  coach       User?    @relation("CoachExercises", fields: [coachId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  planExercises PlanExercise[]
+  exerciseLogs  ExerciseLog[]
+
+  @@map("exercises")
+}
+
+model Plan {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  coachId     String
+  coach       User     @relation("CoachPlans", fields: [coachId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  days          PlanDay[]
+  assignedPlans AssignedPlan[]
+
+  @@map("plans")
+}
+
+model PlanDay {
+  id        String   @id @default(uuid())
+  name      String   // e.g., "Monday", "Day 1"
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  order     Int      @default(0)
+
+  // Relations
+  exercises PlanExercise[]
+
+  @@map("plan_days")
+}
+
+model PlanExercise {
+  id         String   @id @default(uuid())
+  dayId      String
+  day        PlanDay  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+  
+  seriesSpecType SeriesSpecType @default(REPS)
+  sets       Int      @default(3)
+  reps       String?  // String to allow ranges "8-12" or time "30s"
+  rpe        Int?
+  restSeconds Int?
+  order      Int      @default(0)
+
+  @@map("plan_exercises")
+}
+
+model AssignedPlan {
+  id        String   @id @default(uuid())
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id])
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id])
+  
+  startDate DateTime
+  endDate   DateTime?
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@map("assigned_plans")
+}
+
+model WorkoutLog {
+  id        String   @id @default(uuid())
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id])
+  date      DateTime @default(now())
+  feedback  String?
+  durationMinutes Int?
+
+  // Relations
+  exerciseLogs ExerciseLog[]
+
+  @@map("workout_logs")
+}
+
+model ExerciseLog {
+  id           String     @id @default(uuid())
+  workoutLogId String
+  workoutLog   WorkoutLog @relation(fields: [workoutLogId], references: [id], onDelete: Cascade)
+  exerciseId   String
+  exercise     Exercise   @relation(fields: [exerciseId], references: [id])
+
+  setNumber    Int
+  reps         Int
+  weight       Float?
+  rpe          Int?
+  
+  @@map("exercise_logs")
+}

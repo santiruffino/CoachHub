@@ -1,0 +1,66 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pt_pwa_postgres
+    ports:
+      - "5433:5432" # Changed to 5433 to avoid conflict with local Postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pt_pwa
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d pt_pwa" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  backend:
+    build: .
+    container_name: pt_pwa_backend
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://user:password@postgres:5432/pt_pwa?schema=public"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    # Wait for postgres to be ready, run migrations, then start app in watch mode
+    command: >
+      sh -c "npx prisma generate && npx prisma migrate deploy && npm run start:dev"
+
+  minio:
+    image: minio/minio
+    container_name: pt_pwa_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c " /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin; /usr/bin/mc mb --ignore-existing myminio/pt-pwa-videos; /usr/bin/mc anonymous set public myminio/pt-pwa-videos; exit 0; "
+
+volumes:
+  postgres_data:
+  minio_data:
