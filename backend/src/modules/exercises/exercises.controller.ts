@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Delete, Param } from '@nestjs/common';
 import { ExercisesService } from './exercises.service';
 import { CreateExerciseDto } from './dto/create-exercise.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -39,5 +39,11 @@ export class ExercisesController {
     @Roles(Role.COACH)
     async getPresignedUrl(@Body() body: { fileName: string; fileType: string }) {
         return this.exercisesService.getPresignedUrl(body.fileName, body.fileType);
+    }
+
+    @Delete(':id')
+    @Roles(Role.COACH)
+    remove(@Param('id') id: string) {
+        return this.exercisesService.remove(id);
     }
 }

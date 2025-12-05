@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
-import { Dumbbell, PlayCircle } from 'lucide-react';
+import { Dumbbell, PlayCircle, Trash2 } from 'lucide-react';
 
 interface Exercise {
     id: string;
@@ -12,11 +12,21 @@ interface Exercise {
 }
 
 export function ExerciseList() {
+    const queryClient = useQueryClient();
     const { data: exercises, isLoading } = useQuery({
         queryKey: ['exercises'],
         queryFn: async () => {
             const res = await api.get<Exercise[]>('/exercises');
             return res.data;
+        },
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            await api.delete(`/exercises/${id}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['exercises'] });
         },
     });
 
@@ -35,10 +45,23 @@ export function ExerciseList() {
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {exercises?.map((exercise) => (
-                <Card key={exercise.id} className="hover:shadow-md transition-shadow">
+                <Card key={exercise.id} className="hover:shadow-md transition-shadow relative group">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">{exercise.title}</CardTitle>
-                        <Dumbbell className="h-4 w-4 text-gray-500" />
+                        <div className="flex items-center space-x-2">
+                            <Dumbbell className="h-4 w-4 text-gray-500" />
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Are you sure you want to delete this exercise?')) {
+                                        deleteMutation.mutate(exercise.id);
+                                    }
+                                }}
+                                className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </button>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="text-xs text-gray-500 mb-2">{exercise.description || 'No description'}</div>

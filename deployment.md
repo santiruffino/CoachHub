@@ -45,6 +45,8 @@ The `docker-compose.yml` file comes with pre-configured environment variables fo
 | `S3_ACCESS_KEY` | S3 Access Key | `minioadmin` |
 | `S3_SECRET_KEY` | S3 Secret Key | `minioadmin` |
 | `S3_BUCKET_NAME` | Bucket for storing videos | `pt-pwa-videos` |
+| `MINIO_BACKEND_USER` | Dedicated username for the backend service. | `backend` |
+| `MINIO_BACKEND_PASSWORD` | Password for the backend service user. | `backend-secret` |
 | `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:8080` |
 
 ### Frontend

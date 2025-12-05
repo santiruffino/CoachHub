@@ -64,4 +64,9 @@ export class ExercisesService {
       publicUrl: `${publicEndpoint}/${this.bucketName}/${key}`,
     };
   }
+  async remove(id: string) {
+    return this.prisma.exercise.delete({
+      where: { id },
+    });
+  }
 }
