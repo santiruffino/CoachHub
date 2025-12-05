@@ -22,6 +22,16 @@ export function ExerciseList() {
 
     if (isLoading) return <div>Loading exercises...</div>;
 
+    if (!exercises || exercises.length === 0) {
+        return (
+            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <Dumbbell className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-semibold text-gray-900">No exercises</h3>
+                <p className="mt-1 text-sm text-gray-500">Get started by creating a new exercise.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {exercises?.map((exercise) => (

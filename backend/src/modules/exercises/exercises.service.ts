@@ -32,7 +32,6 @@ export class ExercisesService {
   }
 
   async findAll(userId: string) {
-    // Fetch global exercises (no coachId) and exercises created by this coach
     return this.prisma.exercise.findMany({
       where: {
         OR: [
@@ -54,10 +53,15 @@ export class ExercisesService {
 
     const url = await getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
 
-    // Return the upload URL and the final public URL
+
+    const publicEndpoint = process.env.S3_PUBLIC_ENDPOINT || 'http://localhost:9000';
+    const internalEndpoint = process.env.S3_ENDPOINT || 'http://minio:9000';
+
+    const uploadUrl = url.replace(internalEndpoint, publicEndpoint);
+
     return {
-      uploadUrl: url,
-      publicUrl: `${process.env.S3_PUBLIC_ENDPOINT || 'http://localhost:9000'}/${this.bucketName}/${key}`,
+      uploadUrl,
+      publicUrl: `${publicEndpoint}/${this.bucketName}/${key}`,
     };
   }
 }
