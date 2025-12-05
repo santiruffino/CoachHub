@@ -259,6 +259,7 @@ Do not expose ports 3000, 9000, 5433 directly to the internet. Instead, use a re
             
             # Required for MinIO
             proxy_buffering off;
+            proxy_request_buffering off;
         }
     }
     ```

@@ -16,6 +16,9 @@ export function StudentList() {
             const res = await api.get<Student[]>('/users/students');
             return res.data;
         },
+        staleTime: 0,
+        gcTime: 0,
+        refetchOnMount: true,
     });
 
     if (isLoading) return <div>Loading students...</div>;
