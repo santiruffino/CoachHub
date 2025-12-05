@@ -32,6 +32,7 @@ export class AuthService {
                 password: hashedPassword,
                 name: registerDto.name,
                 role: 'STUDENT', // Default role
+                coachId: registerDto.coachId,
             },
         });
 

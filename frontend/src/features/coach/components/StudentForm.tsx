@@ -6,6 +6,7 @@ import { Input } from '../../../components/ui/Input';
 import { Label } from '../../../components/ui/Label';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
+import { useAuth } from '../../../hooks/useAuth';
 
 const studentSchema = z.object({
     name: z.string().min(2, 'Name is required'),
@@ -21,13 +22,16 @@ interface StudentFormProps {
 
 export function StudentForm({ onSuccess }: StudentFormProps) {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
     const { register, handleSubmit, formState: { errors } } = useForm<StudentFormData>({
         resolver: zodResolver(studentSchema),
     });
 
     const mutation = useMutation({
         mutationFn: async (data: StudentFormData) => {
-            await api.post('/auth/register', data);
+            // If we have a user (coach) logged in, send their ID
+            const payload = { ...data, coachId: user?.id };
+            await api.post('/auth/register', payload);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['students'] });
