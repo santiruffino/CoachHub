@@ -16,8 +16,8 @@ export class ExercisesService {
       endpoint: process.env.S3_ENDPOINT || 'http://localhost:9000',
       forcePathStyle: true, // Required for MinIO
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'minioadmin',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'minioadmin',
+        accessKeyId: process.env.S3_ACCESS_KEY || 'minioadmin',
+        secretAccessKey: process.env.S3_SECRET_KEY || 'minioadmin',
       },
     });
   }
