@@ -33,9 +33,9 @@ export function DraggableExercise({ id, title }: DraggableExerciseProps) {
                 transform && "opacity-50"
             )}
         >
-            <div className="flex items-center">
-                <GripVertical className="h-4 w-4 text-gray-400 mr-2" />
-                <div className="text-sm font-medium">{title}</div>
+            <div className="flex items-center w-full min-w-0">
+                <GripVertical className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
+                <div className="text-sm font-medium truncate" title={title}>{title}</div>
             </div>
         </div>
     );

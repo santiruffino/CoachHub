@@ -30,13 +30,13 @@ export function SortableExercise({ id, title, sets, reps, seriesSpecType, onRemo
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="bg-white p-3 rounded shadow-sm border space-y-2">
-            <div className="flex justify-between items-start">
-                <div className="flex items-center">
-                    <button {...attributes} {...listeners} className="cursor-grab hover:text-blue-500 mr-2">
+        <div ref={setNodeRef} style={style} className="bg-white p-3 rounded shadow-sm border space-y-2 whitespace-normal">
+            <div className="flex justify-between items-start gap-2">
+                <div className="flex items-center flex-1 min-w-0">
+                    <button {...attributes} {...listeners} className="cursor-grab hover:text-blue-500 mr-2 flex-shrink-0">
                         <GripVertical className="h-4 w-4 text-gray-400" />
                     </button>
-                    <span className="font-medium text-sm">{title}</span>
+                    <span className="font-medium text-sm break-words">{title}</span>
                 </div>
                 <button onClick={onRemove} className="text-gray-400 hover:text-red-500">
                     <Trash2 className="h-4 w-4" />
@@ -58,7 +58,7 @@ export function SortableExercise({ id, title, sets, reps, seriesSpecType, onRemo
                     <select
                         value={seriesSpecType}
                         onChange={(e) => onUpdate('seriesSpecType', e.target.value)}
-                        className="h-7 w-full text-xs rounded-md border border-gray-300 px-1"
+                        className="flex h-7 w-full rounded-md border border-gray-300 bg-white px-1 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <option value="REPS">Reps</option>
                         <option value="TIME">Time</option>

@@ -6,6 +6,22 @@ import { Plus, List } from 'lucide-react';
 
 export function Plans() {
     const [view, setView] = useState<'list' | 'builder'>('list');
+    const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+
+    const handleEdit = (planId: string) => {
+        setEditingPlanId(planId);
+        setView('builder');
+    };
+
+    const handleCreate = () => {
+        setEditingPlanId(null);
+        setView('builder');
+    };
+
+    const handleSuccess = () => {
+        setEditingPlanId(null);
+        setView('list');
+    };
 
     return (
         <div className="h-full flex flex-col space-y-6">
@@ -24,7 +40,7 @@ export function Plans() {
                     </Button>
                     <Button
                         variant={view === 'builder' ? 'primary' : 'outline'}
-                        onClick={() => setView('builder')}
+                        onClick={handleCreate}
                     >
                         <Plus className="mr-2 h-4 w-4" />
                         Create New
@@ -33,7 +49,14 @@ export function Plans() {
             </div>
 
             <div className="flex-1">
-                {view === 'list' ? <PlanList /> : <PlanBuilder />}
+                {view === 'list' ? (
+                    <PlanList onEdit={handleEdit} />
+                ) : (
+                    <PlanBuilder
+                        planId={editingPlanId}
+                        onSuccess={handleSuccess}
+                    />
+                )}
             </div>
         </div>
     );

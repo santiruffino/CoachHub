@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DndContext, type DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, type DragStartEvent, type DragOverEvent, closestCorners } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { DraggableExercise } from './DraggableExercise';
@@ -25,10 +25,17 @@ interface PlanDayData {
         sets: number;
         reps: string;
         seriesSpecType: 'REPS' | 'TIME';
+        rpe?: number;
+        restSeconds?: number;
     }>;
 }
 
-export function PlanBuilder() {
+interface PlanBuilderProps {
+    planId?: string | null;
+    onSuccess?: () => void;
+}
+
+export function PlanBuilder({ planId, onSuccess }: PlanBuilderProps) {
     const queryClient = useQueryClient();
     const [planTitle, setPlanTitle] = useState('');
     const [days, setDays] = useState<PlanDayData[]>([{ id: 'day-0', exercises: [] }]);
@@ -47,6 +54,36 @@ export function PlanBuilder() {
             return res.data;
         },
     });
+
+    const { data: existingPlan } = useQuery({
+        queryKey: ['plan', planId],
+        queryFn: async () => {
+            if (!planId) return null;
+            const res = await api.get(`/plans/${planId}`);
+            return res.data;
+        },
+        enabled: !!planId,
+    });
+
+    useEffect(() => {
+        if (existingPlan) {
+            setPlanTitle(existingPlan.title);
+            const loadedDays = existingPlan.days.map((day: any) => ({
+                id: day.id,
+                exercises: day.exercises.map((ex: any) => ({
+                    instanceId: uuidv4(),
+                    id: ex.exercise.id,
+                    title: ex.exercise.title,
+                    sets: ex.sets,
+                    reps: ex.reps,
+                    seriesSpecType: ex.seriesSpecType,
+                    restSeconds: ex.restSeconds,
+                    rpe: ex.rpe,
+                })),
+            }));
+            setDays(loadedDays);
+        }
+    }, [existingPlan]);
 
     const handleDragStart = (event: DragStartEvent) => {
         const { active } = event;
@@ -157,7 +194,7 @@ export function PlanBuilder() {
 
     const saveMutation = useMutation({
         mutationFn: async () => {
-            await api.post('/plans', {
+            const payload = {
                 title: planTitle,
                 days: days.map((d, i) => ({
                     name: `Day ${i + 1}`,
@@ -168,15 +205,30 @@ export function PlanBuilder() {
                         sets: Number(e.sets),
                         reps: e.reps,
                         seriesSpecType: e.seriesSpecType,
+                        restSeconds: e.restSeconds,
+                        rpe: e.rpe,
                     }))
                 }))
-            });
+            };
+
+            if (planId) {
+                await api.patch(`/plans/${planId}`, payload);
+            } else {
+                await api.post('/plans', payload);
+            }
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['plans'] });
-            alert('Plan saved!');
-            setPlanTitle('');
-            setDays([{ id: 'day-0', exercises: [] }]);
+            if (planId) {
+                queryClient.invalidateQueries({ queryKey: ['plan', planId] });
+            }
+            alert(planId ? 'Plan updated!' : 'Plan saved!');
+            if (onSuccess) {
+                onSuccess();
+            } else {
+                setPlanTitle('');
+                setDays([{ id: 'day-0', exercises: [] }]);
+            }
         }
     });
 
@@ -251,7 +303,7 @@ export function PlanBuilder() {
             <DragOverlay>
                 {activeDragItem ? (
                     <div className="p-3 bg-white border rounded-md shadow-lg w-64 opacity-90">
-                        <div className="font-medium">{activeDragItem.title}</div>
+                        <div className="font-medium break-words">{activeDragItem.title}</div>
                     </div>
                 ) : null}
             </DragOverlay>

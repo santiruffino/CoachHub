@@ -16,7 +16,11 @@ interface Plan {
     };
 }
 
-export function PlanList() {
+interface PlanListProps {
+    onEdit: (planId: string) => void;
+}
+
+export function PlanList({ onEdit }: PlanListProps) {
     const [assignPlanId, setAssignPlanId] = useState<string | null>(null);
 
     const { data: plans, isLoading } = useQuery({
@@ -44,15 +48,25 @@ export function PlanList() {
                                 <br />
                                 {plan._count?.days || 0} Days
                             </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full"
-                                onClick={() => setAssignPlanId(plan.id)}
-                            >
-                                <UserPlus className="mr-2 h-4 w-4" />
-                                Assign to Student
-                            </Button>
+                            <div className="flex space-x-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => onEdit(plan.id)}
+                                >
+                                    Edit
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => setAssignPlanId(plan.id)}
+                                >
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    Assign
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 ))}

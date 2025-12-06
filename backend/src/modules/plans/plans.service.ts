@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { AssignPlanDto } from './dto/assign-plan.dto';
+import { UpdatePlanDto } from './dto/update-plan.dto';
 
 @Injectable()
 export class PlansService {
@@ -48,7 +49,10 @@ export class PlansService {
             where: { coachId },
             include: {
                 _count: {
-                    select: { assignedPlans: true },
+                    select: {
+                        assignedPlans: true,
+                        days: true,
+                    },
                 },
             },
             orderBy: { createdAt: 'desc' },
@@ -78,6 +82,62 @@ export class PlansService {
         }
 
         return plan;
+    }
+
+    async update(coachId: string, id: string, updatePlanDto: UpdatePlanDto) {
+        const plan = await this.prisma.plan.findUnique({
+            where: { id },
+        });
+
+        if (!plan || plan.coachId !== coachId) {
+            throw new NotFoundException('Plan not found or access denied');
+        }
+
+        const { title, description, days } = updatePlanDto;
+
+        // Transaction to ensure atomicity
+        return this.prisma.$transaction(async (prisma) => {
+            // 1. Update basic info
+            await prisma.plan.update({
+                where: { id },
+                data: {
+                    title,
+                    description,
+                },
+            });
+
+            // 2. If days are provided, replace them (and their exercises)
+            if (days) {
+                // Delete existing days (cascade will handle exercises)
+                await prisma.planDay.deleteMany({
+                    where: { planId: id },
+                });
+
+                // Create new days
+                for (const day of days) {
+                    await prisma.planDay.create({
+                        data: {
+                            planId: id,
+                            name: day.name,
+                            order: day.order,
+                            exercises: {
+                                create: day.exercises.map((ex) => ({
+                                    exerciseId: ex.exerciseId,
+                                    seriesSpecType: ex.seriesSpecType,
+                                    sets: ex.sets,
+                                    reps: ex.reps,
+                                    rpe: ex.rpe,
+                                    restSeconds: ex.restSeconds,
+                                    order: ex.order,
+                                })),
+                            },
+                        },
+                    });
+                }
+            }
+
+            return this.findOne(id);
+        });
     }
 
     async assign(coachId: string, planId: string, assignPlanDto: AssignPlanDto) {
